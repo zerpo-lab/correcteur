@@ -63,7 +63,13 @@ const CONSIGNE = `Tu corriges le français d'un message écrit vite, sans le ré
 
 Corrige uniquement :
 - les mots mal orthographiés ;
-- les accents manquants ou fautifs ;
+- les accents manquants ou fautifs. C'est la faute la plus fréquente et celle
+  qu'on oublie le plus : un mot français écrit sans son accent est toujours une
+  faute, même dans une phrase relâchée, même entourée de mots anglais, même si
+  le sens est parfaitement clair. creation, evidemment, repondre, deja, tres,
+  apres, etre, probleme, reglage, decider, genant : corrige-les sans hésiter.
+  En revanche a, ou, la, du, sur, cote existent aussi sans accent : pour
+  ceux-là, c'est la phrase qui décide, et c'est la règle suivante ;
 - les accords et la conjugaison ;
 - les homophones (a/à, ou/où, sais/c'est, ce/se, leur/leurs, on/ont) ;
 - les traits d'union obligatoires (dis-moi, celui-là, est-ce) ;
@@ -99,13 +105,29 @@ export function mots(texte: string): string[] {
   return texte.split(/\s+/).filter(Boolean)
 }
 
+/**
+ * Les mots ajoutés par la personne, gardés dans ses réglages et non dans le
+ * code : `/correcteur mot <liste>` les ajoute, `/correcteur oubli <liste>` les
+ * retire. Ils ne partent donc jamais dans un dépôt.
+ */
+export const PERSO = new Set<string>()
+
+/** Pourquoi la dernière correction a été rejetée, lue par /correcteur. */
+export const dernier = { refus: '' }
+
+function refuse(raison: string): null {
+  dernier.refus = raison
+  return null
+}
+
 export function protege(mot: string): boolean {
   if (/[/\\@_]|https?:/.test(mot)) return true
   const nu = mot.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
   if (!nu) return true
   if (/\p{N}/u.test(nu)) return true
   if (nu.length > 1 && nu === nu.toUpperCase() && /\p{Lu}/u.test(nu)) return true
-  return PROTEGES.has(nu.toLowerCase())
+  const bas = nu.toLowerCase()
+  return PROTEGES.has(bas) || PERSO.has(bas)
 }
 
 function table(a: string[], b: string[]): number[][] {
@@ -130,8 +152,9 @@ function table(a: string[], b: string[]): number[][] {
  * reprend sa place et le mot n'est pas marqué.
  */
 export function aligne(orig: string, corr: string): Aligne | null {
-  if (!corr) return null
-  if (Math.abs(corr.length - orig.length) > orig.length * 0.15) return null
+  if (!corr) return refuse('réponse vide')
+  if (Math.abs(corr.length - orig.length) > orig.length * 0.15)
+    return refuse('écart de longueur : ' + orig.length + ' -> ' + corr.length + ' caractères')
 
   const a = mots(orig)
   const bouts = corr.split(/(\s+)/)
@@ -140,12 +163,13 @@ export function aligne(orig: string, corr: string): Aligne | null {
     if (i % 2 === 0 && bout) places.push(i)
   })
   const b = places.map((i) => bouts[i])
-  if (!a.length || !b.length) return null
+  if (!a.length || !b.length) return refuse('texte vide')
   // Le texte affiché est celui du correcteur : un mot perdu disparaîtrait de la
   // ligne. Une correction peut couper un mot en deux ou en souder deux par un
   // trait d'union, jamais en retirer un — d'où le comptage trait d'union neutralisé.
   const compte = (s: string) => mots(s.replace(/[-‑–—]/g, ' ')).length
-  if (compte(corr) < compte(orig)) return null
+  if (compte(corr) < compte(orig))
+    return refuse('mot perdu : ' + compte(orig) + ' mots -> ' + compte(corr))
 
   const ba = a.map((m) => m.toLowerCase())
   const bb = b.map((m) => m.toLowerCase())
@@ -170,13 +194,14 @@ export function aligne(orig: string, corr: string): Aligne | null {
   }
 
   for (const mot of a) {
-    if (protege(mot) && !b.includes(mot)) return null
+    if (protege(mot) && !b.includes(mot)) return refuse('mot protégé touché : ' + mot)
   }
   // Le garde-fou de proportion ne vaut que pour une phrase : sur un message de
   // deux mots, une seule correction fait déjà la moitié du texte.
   const marques = neuf.filter(Boolean).length
-  if (!marques) return null
-  if (marques > 2 && marques / b.length > PART_MAX) return null
+  if (!marques) return refuse('aucune faute')
+  if (marques > 2 && marques / b.length > PART_MAX)
+    return refuse('réécriture : ' + marques + ' mots changés sur ' + b.length)
   return { bouts, neuf, places }
 }
 
@@ -207,9 +232,12 @@ const trace = {
   reponses: 0,
   echecs: 0,
   corriges: 0,
+  sansFaute: 0,
   refuses: 0,
   dessins: 0,
+  dernierRefus: '',
   dernierEchec: '',
+  journal: [] as string[],
   derniereReponse: '',
 }
 
@@ -229,9 +257,25 @@ async function demande($: EngineInterface, texte: string): Promise<void> {
     if (r.isAnswered) {
       trace.reponses++
       trace.derniereReponse = r.text.trim().slice(0, 120)
+      dernier.refus = ''
       const vu = aligne(texte, r.text.trim())
-      if (vu) trace.corriges++
-      else trace.refuses++
+      let verdict: string
+      if (vu) {
+        trace.corriges++
+        verdict = 'corrigé(' + vu.neuf.filter(Boolean).length + ')'
+      } else if (dernier.refus === 'aucune faute') {
+        trace.sansFaute++
+        verdict = 'sans faute'
+      } else {
+        trace.refuses++
+        trace.dernierRefus = dernier.refus + '  —  « ' + texte.slice(0, 70) + ' »'
+        verdict = dernier.refus
+      }
+      trace.journal.unshift(
+        verdict.padEnd(22) + ' tapé: « ' + texte.slice(0, 48) + ' »'
+          + '\n' + ' '.repeat(22) + ' haiku: « ' + r.text.trim().slice(0, 48) + ' »',
+      )
+      trace.journal.length = Math.min(trace.journal.length, 5)
       fait.set(texte, vu)
     } else {
       trace.echecs++
@@ -259,6 +303,10 @@ export const register: Register = (on) => {
       if (typeof garde === 'boolean') actif = garde
       const t = await $.store.get('teinte')
       if (typeof t === 'string' && t) reglage = t
+      const p = await $.store.get('perso')
+      if (Array.isArray(p)) {
+        for (const m of p) if (typeof m === 'string' && m) PERSO.add(m.toLowerCase())
+      }
     } catch {}
     await $.command.register({
       name: 'correcteur',
@@ -280,6 +328,20 @@ export const register: Register = (on) => {
       await $.store.set('teinte', reglage)
       $.ui.invalidate('ui.render')
     }
+    const m = /^(mot|oubli)\s+(.+)$/.exec(arg)
+    if (m) {
+      const liste = m[2]
+        .split(/[\s,]+/)
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean)
+      for (const x of liste) {
+        if (m[1] === 'mot') PERSO.add(x)
+        else PERSO.delete(x)
+      }
+      await $.store.set('perso', [...PERSO])
+      fait.clear()
+      $.ui.invalidate('ui.render')
+    }
     const org = Object.entries(trace.origines)
       .map(([k, n]) => k + '=' + n)
       .join(' ') || '(aucune)'
@@ -288,12 +350,17 @@ export const register: Register = (on) => {
         'affichage : ' + (actif ? 'oui' : 'non') + '   (/correcteur on | off)',
         'teinte : ' + reglage
           + '   (/correcteur teinte merged | subtle | diffAddedWord | souligne | fond:diffAddedDimmed)',
+        'vos mots protégés : ' + ([...PERSO].sort().join(' ') || '(aucun)')
+          + '   (/correcteur mot <liste> pour ajouter, oubli <liste> pour retirer)',
         'rendus vus : ' + trace.rendus + '   origines : ' + org,
         'écartés avant appel : ' + trace.ecartes,
         'appels Haiku : ' + trace.demandes + '   réponses : ' + trace.reponses + '   échecs : ' + trace.echecs,
-        'corrigés : ' + trace.corriges + '   refusés : ' + trace.refuses + '   dessinés : ' + trace.dessins,
+        'corrigés : ' + trace.corriges + '   sans faute : ' + trace.sansFaute
+          + '   refusés : ' + trace.refuses + '   dessinés : ' + trace.dessins,
         'dernier échec : ' + (trace.dernierEchec || '—'),
-        'dernière réponse : ' + (trace.derniereReponse || '—'),
+        '',
+        'les 5 dernières décisions, de la plus récente :',
+        ...(trace.journal.length ? trace.journal : ['  (aucune)']),
       ].join('\n'),
     }
   })

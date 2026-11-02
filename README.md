@@ -1,5 +1,9 @@
 # correcteur
 
+![Une ligne de message affichée corrigée, les quatre mots corrigés teintés](assets/correction.png)
+
+Ce qui a été tapé : `ca marche tres bien, j'ai hate de voir ce que ca donne`.
+
 Affiche vos messages avec les fautes de français corrigées, chaque mot corrigé
 repris dans une autre couleur. Le message d'origine n'est pas modifié : il reste
 tel que vous l'avez tapé, et c'est cette version-là que le modèle lit pour
@@ -11,6 +15,10 @@ Les mots mal orthographiés, les accents, les accords et la conjugaison, les
 homophones (`a`/`à`, `ou`/`où`, `sais`/`c'est`) et les traits d'union
 obligatoires. Rien d'autre : ni les majuscules, ni la ponctuation, ni le style,
 ni l'ordre des mots, ni le vocabulaire.
+
+Un message écrit dans une autre langue revient intact : vérifié sur de l'anglais
+fautif, qui n'est ni traduit ni corrigé. Les anglicismes au milieu d'une phrase
+française passent sans encombre.
 
 ## Ce qu'il refuse de faire
 
@@ -58,6 +66,10 @@ mots tout en majuscules (`ACME`), ceux qui contiennent un chiffre (`99.2%`,
 `v2`), et tout ce qui ressemble à un chemin ou à une URL.
 
 ## Réglages
+
+![Les treize réglages de teinte, dessinés côte à côte dans le rendu réel](assets/teintes.png)
+
+Taper `teintes` comme message dessine cette planche dans votre propre thème.
 
 La surface du bureau ne rend pas fidèlement les couleurs libres : plusieurs hex
 pâles différents donnent le même rendu éteint. Préférez donc les clés du thème,
