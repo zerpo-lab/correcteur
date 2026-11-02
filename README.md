@@ -16,9 +16,15 @@ homophones (`a`/`à`, `ou`/`où`, `sais`/`c'est`) et les traits d'union
 obligatoires. Rien d'autre : ni les majuscules, ni la ponctuation, ni le style,
 ni l'ordre des mots, ni le vocabulaire.
 
-Un message écrit dans une autre langue revient intact : vérifié sur de l'anglais
-fautif, qui n'est ni traduit ni corrigé. Les anglicismes au milieu d'une phrase
+**Ce correcteur ne corrige que le français**, et c'est délibéré. Un message
+écrit dans une autre langue revient intact : vérifié sur de l'anglais fautif,
+qui n'est ni traduit ni corrigé. Les anglicismes au milieu d'une phrase
 française passent sans encombre.
+
+Cette limite est aussi une protection, et c'est le cas qui l'a montré : dans
+`traduis ca stp : the frames are delivered with the tpu kit`, seul `ca` est
+corrigé. Le texte à traduire ressort tel quel. Rendre l'outil bilingue ferait
+perdre exactement ça.
 
 ## Ce qu'il refuse de faire
 
