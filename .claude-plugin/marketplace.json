@@ -1,0 +1,5 @@
+{
+  "name": "correcteur",
+  "owner": { "name": "zerpo-lab" },
+  "plugins": [{ "name": "correcteur", "source": "./" }]
+}
