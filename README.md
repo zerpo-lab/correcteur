@@ -26,6 +26,27 @@ Cette limite est aussi une protection, et c'est le cas qui l'a montré : dans
 corrigé. Le texte à traduire ressort tel quel. Rendre l'outil bilingue ferait
 perdre exactement ça.
 
+## Ce qu'il consomme
+
+**Chaque message que vous tapez part dans un appel à Claude Haiku, sur votre
+propre compte.** Il n'y a pas de clé à fournir : le mod emprunte le client de la
+session, donc la dépense tombe sur votre abonnement ou sur votre facture d'API,
+pas sur celle de quelqu'un d'autre.
+
+L'ordre de grandeur, mesuré sur cinq mois de messages réels : environ 345 tokens
+en entrée et 45 en sortie par message, soit à peu près **0,10 $ par mois pour
+soixante messages par jour** aux tarifs de Haiku 5.5. À titre de comparaison,
+c'est moins d'un demi pourcent de ce que coûte un seul tour de conversation avec
+un modèle Opus sur un contexte déjà rempli.
+
+C'est négligeable, mais c'est votre quota et vous avez le droit de le savoir
+avant d'installer. `/correcteur off` arrête les appels, `/correcteur on` les
+reprend, et le choix est gardé d'une session à l'autre.
+
+Ne partent jamais : les messages de plus de 600 caractères, ceux qui commencent
+par un signe, ceux qui contiennent un bloc de code, et tout ce qui ne vient pas
+de vous.
+
 ## Ce qu'il refuse de faire
 
 La correction vient d'un appel à Claude Haiku, et une consigne n'est pas une
@@ -100,3 +121,23 @@ Dans l'app desktop, où `/plugin` ne s'exécute pas : le `+` à côté du champ 
 saisie, puis Plugins, Add marketplace, puis Add plugin. Depuis un dossier local,
 `claude plugin install correcteur --marketplace <chemin du dossier>` suffit, et
 le mod reste alors relu depuis ce dossier à chaque `/reload-plugins`.
+
+## Désinstaller
+
+```
+/plugin uninstall correcteur
+```
+
+Il ne laisse rien derrière lui sur le disque : ni fichier, ni dossier. Vos mots
+protégés et vos réglages vivent dans le magasin du mod, que la désinstallation
+emporte avec lui.
+
+## Les tests
+
+```
+node --experimental-strip-types tests/logique.test.ts
+```
+
+Ils portent sur la logique de correction — l'alignement, les garde-fous, les
+mots protégés, la normalisation de la casse — extraite de `hooks/register.tsx` à
+l'exécution, de sorte que c'est le code livré qui est testé et jamais une copie.
