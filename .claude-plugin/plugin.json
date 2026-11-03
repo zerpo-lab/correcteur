@@ -1,6 +1,6 @@
 {
   "name": "correcteur",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Affiche vos messages avec les fautes corrigées, le mot corrigé légèrement teinté. Le message d'origine n'est pas modifié.",
   "license": "MIT"
 }
